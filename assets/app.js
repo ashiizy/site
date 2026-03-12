@@ -49,6 +49,9 @@
     editError: document.getElementById("editError"),
 
     toast: document.getElementById("toast"),
+    btnSave: document.getElementById("btnSave"),
+    loadingOverlay: document.getElementById("loadingOverlay"),
+    loadingText: document.getElementById("loadingText"),
   };
 
   /** @type {{version:number, instructions: Instruction[]}} */
@@ -320,6 +323,27 @@
     }, 2200);
   }
 
+  function setLoading(isOn, text) {
+    const overlay = els.loadingOverlay;
+    if (!overlay) return;
+    if (isOn) {
+      if (els.loadingText && text) {
+        els.loadingText.textContent = text;
+      }
+      overlay.classList.add("isOpen");
+      overlay.setAttribute("aria-hidden", "false");
+      if (els.btnSave) {
+        els.btnSave.disabled = true;
+      }
+    } else {
+      overlay.classList.remove("isOpen");
+      overlay.setAttribute("aria-hidden", "true");
+      if (els.btnSave) {
+        els.btnSave.disabled = false;
+      }
+    }
+  }
+
   function openModal(kind) {
     lastActiveEl = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const modal = kind === "view" ? els.viewModal : els.editModal;
@@ -517,14 +541,13 @@
   async function copySelectedToClipboard() {
     if (!selected) return;
     const safeHtml = sanitizeRichHtml(selected.contentHtml || "");
-    const title = selected.title || "";
-    const meta = `${selected.region} · ${selected.program} · действует до ${formatDue(selected.dueDate)}`;
-    const text = `${title}\n${meta}\n\n${els.viewContent.innerText || ""}`.trim();
+    const plain = (els.viewContent && els.viewContent.innerText) || "";
+    const text = plain.trim();
 
     // Prefer rich copy (HTML + text). Fallback to plain text.
     try {
       if (window.ClipboardItem && navigator.clipboard && navigator.clipboard.write) {
-        const htmlDoc = `<h2>${escapeText(title)}</h2><div>${escapeText(meta)}</div><hr />${safeHtml || ""}`;
+        const htmlDoc = safeHtml || "";
         const item = new ClipboardItem({
           "text/plain": new Blob([text], { type: "text/plain" }),
           "text/html": new Blob([htmlDoc], { type: "text/html" }),
@@ -637,6 +660,7 @@
         return;
       }
 
+      setLoading(true, "Сохранение…");
       remoteUpsert(inst)
         .then((saved) => {
           if (!saved) throw new Error("Не удалось сохранить.");
@@ -647,8 +671,11 @@
           setToast("Инструкция добавлена.");
         })
         .catch((e) => {
-          els.editError.textContent = e?.message || "Ошибка сохранения.";
+          els.editError.textContent = (e && e.message) || "Ошибка сохранения.";
           els.editError.hidden = false;
+        })
+        .finally(() => {
+          setLoading(false);
         });
       return;
     } else {
@@ -672,6 +699,7 @@
         return;
       }
 
+      setLoading(true, "Сохранение…");
       remoteUpsert(patch)
         .then((saved) => {
           if (!saved) throw new Error("Не удалось сохранить.");
@@ -682,8 +710,11 @@
           setToast("Изменения сохранены.");
         })
         .catch((e) => {
-          els.editError.textContent = e?.message || "Ошибка сохранения.";
+          els.editError.textContent = (e && e.message) || "Ошибка сохранения.";
           els.editError.hidden = false;
+        })
+        .finally(() => {
+          setLoading(false);
         });
       return;
     }

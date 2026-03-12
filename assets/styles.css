@@ -430,6 +430,52 @@ body {
   transform: translateY(0);
 }
 
+.loading {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(5, 10, 25, 0.7);
+  backdrop-filter: blur(4px);
+  z-index: 70;
+}
+
+.loading.isOpen {
+  display: flex;
+}
+
+.loading__panel {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(15, 23, 42, 0.98);
+  box-shadow: var(--shadow);
+}
+
+.loading__spinner {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  border: 2px solid rgba(148, 163, 184, 0.6);
+  border-top-color: rgba(96, 165, 250, 0.9);
+  animation: loading-spin 0.7s linear infinite;
+}
+
+.loading__text {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+@keyframes loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .srOnly {
   position: absolute !important;
   width: 1px !important;
