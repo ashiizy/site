@@ -13,7 +13,6 @@
         : "instructions",
   };
   var HAS_REMOTE = Boolean(REMOTE.url && REMOTE.anonKey && REMOTE.fnName);
-  const EDIT_PASSWORD_KEY = "internalInstructions.editPassword.v1";
 
   /** @typedef {{id:string,title:string,region:string,program:string,dueDate:string,isExpiredOverride:boolean,contentHtml:string,updatedAt:string,createdAt:string}} Instruction */
 
@@ -105,23 +104,6 @@
     localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
   }
 
-  function getEditPassword() {
-    return sessionStorage.getItem(EDIT_PASSWORD_KEY) || "";
-  }
-
-  function setEditPassword(pw) {
-    sessionStorage.setItem(EDIT_PASSWORD_KEY, pw);
-  }
-
-  async function ensureEditPassword() {
-    const existing = getEditPassword();
-    if (existing) return existing;
-    const pw = window.prompt("Введите общий пароль для редактирования/удаления.");
-    if (!pw) return "";
-    setEditPassword(pw);
-    return pw;
-  }
-
   function supabaseFunctionUrl() {
     // https://<project>.supabase.co/functions/v1/<fn>
     var base = (REMOTE.url || "").replace(/\/+$/, "");
@@ -144,38 +126,30 @@
   }
 
   async function remoteUpsert(instruction) {
-    const pw = await ensureEditPassword();
-    if (!pw) throw new Error("Нужен пароль.");
     const res = await fetch(supabaseFunctionUrl(), {
       method: "POST",
       headers: {
         "content-type": "application/json",
         apikey: REMOTE.anonKey,
         Authorization: `Bearer ${REMOTE.anonKey}`,
-        "x-edit-password": pw,
       },
       body: JSON.stringify({ instruction }),
     });
-    if (res.status === 401) throw new Error("Неверный пароль.");
     if (!res.ok) throw new Error(`Ошибка сохранения (${res.status}).`);
     const data = await res.json();
     return normalizeInstruction(data?.instruction);
   }
 
   async function remoteDelete(id) {
-    const pw = await ensureEditPassword();
-    if (!pw) throw new Error("Нужен пароль.");
     const res = await fetch(supabaseFunctionUrl(), {
       method: "DELETE",
       headers: {
         "content-type": "application/json",
         apikey: REMOTE.anonKey,
         Authorization: `Bearer ${REMOTE.anonKey}`,
-        "x-edit-password": pw,
       },
       body: JSON.stringify({ id }),
     });
-    if (res.status === 401) throw new Error("Неверный пароль.");
     if (!res.ok) throw new Error(`Ошибка удаления (${res.status}).`);
   }
 

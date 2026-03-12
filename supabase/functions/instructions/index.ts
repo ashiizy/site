@@ -15,7 +15,7 @@ type Instruction = {
 const corsHeaders = {
   "access-control-allow-origin": "*",
   "access-control-allow-headers":
-    "authorization, x-client-info, apikey, content-type, x-edit-password",
+    "authorization, x-client-info, apikey, content-type",
   "access-control-allow-methods": "GET,POST,DELETE,OPTIONS",
 };
 
@@ -30,13 +30,6 @@ function getEnv(name: string) {
   const v = Deno.env.get(name);
   if (!v) throw new Error(`Missing env: ${name}`);
   return v;
-}
-
-function requirePassword(req: Request) {
-  const expected = Deno.env.get("EDIT_PASSWORD") || "";
-  const got = req.headers.get("x-edit-password") || "";
-  if (!expected || got !== expected) return false;
-  return true;
 }
 
 function normalizeInstruction(x: any): Instruction {
@@ -85,8 +78,6 @@ Deno.serve(async (req) => {
     }
 
     if (req.method === "POST") {
-      if (!requirePassword(req)) return json({ error: "Unauthorized" }, 401);
-
       const body = await req.json().catch(() => ({}));
       const incoming = normalizeInstruction(body?.instruction ?? {});
       if (!incoming.id || !incoming.title) return json({ error: "Bad request" }, 400);
@@ -125,7 +116,6 @@ Deno.serve(async (req) => {
     }
 
     if (req.method === "DELETE") {
-      if (!requirePassword(req)) return json({ error: "Unauthorized" }, 401);
       const body = await req.json().catch(() => ({}));
       const id = String(body?.id ?? "");
       if (!id) return json({ error: "Bad request" }, 400);
