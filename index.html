@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Инструкции</title>
+
+    <link rel="stylesheet" href="assets/styles.css" />
+
+    <!-- Quill (WYSIWYG) -->
+    <link
+      href="https://cdn.jsdelivr.net/npm/quill@1.3.7/dist/quill.snow.css"
+      rel="stylesheet"
+    />
+    <script defer src="https://cdn.jsdelivr.net/npm/quill@1.3.7/dist/quill.min.js"></script>
+
+    <!-- Optional runtime config (copy from assets/config.example.js -> assets/config.js) -->
+    <script defer src="assets/config.js" onerror="void 0"></script>
+    <script defer src="assets/app.js"></script>
+  </head>
+  <body>
+    <div class="app">
+      <header class="topbar">
+        <div class="topbar__left">
+          <div class="field">
+            <label for="filterRegion" class="field__label">Регион</label>
+            <select id="filterRegion" class="field__control">
+              <option value="">Все</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="filterProgram" class="field__label">Программа</label>
+            <select id="filterProgram" class="field__control">
+              <option value="">Все</option>
+            </select>
+          </div>
+
+          <div class="field field--grow">
+            <label for="filterQuery" class="field__label">Поиск</label>
+            <input
+              id="filterQuery"
+              class="field__control"
+              type="search"
+              placeholder="По заголовку..."
+              autocomplete="off"
+            />
+          </div>
+        </div>
+
+        <div class="topbar__right">
+          <button id="btnAdd" class="btn btn--primary" type="button">Добавить</button>
+          <button id="btnExport" class="btn" type="button">Экспорт</button>
+          <button id="btnImport" class="btn" type="button">Импорт</button>
+          <input id="fileImport" class="srOnly" type="file" accept="application/json" />
+        </div>
+      </header>
+
+      <main class="content">
+        <div id="stats" class="stats" aria-live="polite"></div>
+        <section id="cards" class="cards" aria-label="Инструкции"></section>
+        <div id="empty" class="empty" hidden>
+          <div class="empty__title">Пока нет инструкций</div>
+          <div class="empty__hint">Нажмите “Добавить”, чтобы создать первую.</div>
+        </div>
+      </main>
+    </div>
+
+    <!-- View modal -->
+    <div id="viewModal" class="modal" role="dialog" aria-modal="true" aria-hidden="true">
+      <div class="modal__backdrop" data-close="view"></div>
+      <div class="modal__panel" role="document">
+        <div class="modal__header">
+          <div class="modal__titleWrap">
+            <h2 id="viewTitle" class="modal__title"></h2>
+            <div id="viewMeta" class="modal__meta"></div>
+          </div>
+          <div class="modal__actions">
+            <button id="btnCopyFromView" class="btn" type="button">Скопировать</button>
+            <button id="btnEditFromView" class="btn btn--primary" type="button">Редактировать</button>
+            <button id="btnDeleteFromView" class="btn btn--danger" type="button">Удалить</button>
+            <button class="btn" type="button" data-close="view" aria-label="Закрыть">Закрыть</button>
+          </div>
+        </div>
+        <div class="modal__body">
+          <div id="viewContent" class="richContent ql-editor"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit/Create modal -->
+    <div id="editModal" class="modal" role="dialog" aria-modal="true" aria-hidden="true">
+      <div class="modal__backdrop" data-close="edit"></div>
+      <div class="modal__panel modal__panel--wide" role="document">
+        <form id="editForm" class="form">
+          <div class="modal__header">
+            <div class="modal__titleWrap">
+              <h2 id="editTitle" class="modal__title">Инструкция</h2>
+              <div class="modal__meta">Поля отмеченные * обязательны</div>
+            </div>
+            <div class="modal__actions">
+              <button id="btnSave" class="btn btn--primary" type="submit">Сохранить</button>
+              <button class="btn" type="button" data-close="edit">Отмена</button>
+            </div>
+          </div>
+
+          <div class="modal__body">
+            <div class="grid">
+              <div class="field grid__span2">
+                <label for="inpTitle" class="field__label">Заголовок *</label>
+                <input id="inpTitle" class="field__control" type="text" required />
+              </div>
+
+              <div class="field">
+                <label for="inpRegion" class="field__label">Регион *</label>
+                <input id="inpRegion" class="field__control" type="text" required />
+              </div>
+
+              <div class="field">
+                <label for="inpProgram" class="field__label">Программа *</label>
+                <input id="inpProgram" class="field__control" type="text" required />
+              </div>
+
+              <div class="field">
+                <label for="inpDueDate" class="field__label">Действует до *</label>
+                <input id="inpDueDate" class="field__control" type="date" required />
+              </div>
+
+              <div class="field field--inline">
+                <label class="checkbox">
+                  <input id="inpExpiredOverride" type="checkbox" />
+                  <span>Отметить как просроченную вручную</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="editorWrap">
+              <div class="editorLabel">Текст инструкции (вставляйте из Word — форматирование сохранится)</div>
+              <div id="quillEditor" class="quillHost"></div>
+              <div id="editError" class="formError" role="alert" hidden></div>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+  </body>
+</html>
