@@ -3,13 +3,16 @@
 (() => {
   const STORAGE_KEY = "internalInstructions.v1";
   const SCHEMA_VERSION = 1;
-  const CFG = /** @type {any} */ (window.__APP_CONFIG__ || {});
-  const REMOTE = {
+  var CFG = /** @type {any} */ (window.__APP_CONFIG__ || {});
+  var REMOTE = {
     url: typeof CFG.SUPABASE_URL === "string" ? CFG.SUPABASE_URL.trim() : "",
     anonKey: typeof CFG.SUPABASE_ANON_KEY === "string" ? CFG.SUPABASE_ANON_KEY.trim() : "",
-    fnName: typeof CFG.SUPABASE_FUNCTION_NAME === "string" ? CFG.SUPABASE_FUNCTION_NAME.trim() : "instructions",
+    fnName:
+      typeof CFG.SUPABASE_FUNCTION_NAME === "string"
+        ? CFG.SUPABASE_FUNCTION_NAME.trim()
+        : "instructions",
   };
-  const HAS_REMOTE = Boolean(REMOTE.url && REMOTE.anonKey && REMOTE.fnName);
+  var HAS_REMOTE = Boolean(REMOTE.url && REMOTE.anonKey && REMOTE.fnName);
   const EDIT_PASSWORD_KEY = "internalInstructions.editPassword.v1";
 
   /** @typedef {{id:string,title:string,region:string,program:string,dueDate:string,isExpiredOverride:boolean,contentHtml:string,updatedAt:string,createdAt:string}} Instruction */
@@ -58,9 +61,9 @@
   /** @type {Instruction | null} */
   let editing = null;
 
-  let quill = null;
-  let toastTimer = null;
-  let lastActiveEl = null;
+  var quill = null;
+  var toastTimer = null;
+  var lastActiveEl = null;
 
   function nowIso() {
     return new Date().toISOString();
@@ -81,7 +84,9 @@
   }
 
   function safeId() {
-    if (window.crypto?.randomUUID) return window.crypto.randomUUID();
+    if (window.crypto && typeof window.crypto.randomUUID === "function") {
+      return window.crypto.randomUUID();
+    }
     return `id_${Math.random().toString(16).slice(2)}_${Date.now()}`;
   }
 
@@ -119,7 +124,9 @@
 
   function supabaseFunctionUrl() {
     // https://<project>.supabase.co/functions/v1/<fn>
-    return `${REMOTE.url.replace(/\\/+$/, "")}/functions/v1/${encodeURIComponent(REMOTE.fnName)}`;
+    var base = (REMOTE.url || "").replace(/\/+$/, "");
+    var fn = encodeURIComponent(REMOTE.fnName || "");
+    return base + "/functions/v1/" + fn;
   }
 
   async function remoteList() {
@@ -334,7 +341,7 @@
     window.clearTimeout(toastTimer);
     els.toast.textContent = text;
     els.toast.classList.add("isOpen");
-    toastTimer = window.setTimeout(() => {
+    toastTimer = window.setTimeout(function () {
       els.toast.classList.remove("isOpen");
     }, 2200);
   }
@@ -346,12 +353,11 @@
     modal.setAttribute("aria-hidden", "false");
     document.body.style.overflow = "hidden";
 
-    window.setTimeout(() => {
-      const focusTarget =
-        kind === "view"
-          ? els.btnEditFromView
-          : els.inpTitle;
-      focusTarget?.focus?.();
+    window.setTimeout(function () {
+      const focusTarget = kind === "view" ? els.btnEditFromView : els.inpTitle;
+      if (focusTarget && typeof focusTarget.focus === "function") {
+        focusTarget.focus();
+      }
     }, 0);
   }
 
@@ -385,14 +391,14 @@
 
     // Custom image handler: embed as data URL (works offline + in LocalStorage).
     const toolbar = quill.getModule("toolbar");
-    toolbar.addHandler("image", () => {
+    toolbar.addHandler("image", function () {
       const input = document.createElement("input");
       input.type = "file";
       input.accept = "image/*";
       input.click();
       input.addEventListener(
         "change",
-        async () => {
+        async function () {
           const file = input.files?.[0];
           if (!file) return;
           if (!file.type.startsWith("image/")) {
@@ -543,14 +549,14 @@
 
     // Prefer rich copy (HTML + text). Fallback to plain text.
     try {
-      if (window.ClipboardItem && navigator.clipboard?.write) {
+      if (window.ClipboardItem && navigator.clipboard && navigator.clipboard.write) {
         const htmlDoc = `<h2>${escapeText(title)}</h2><div>${escapeText(meta)}</div><hr />${safeHtml || ""}`;
         const item = new ClipboardItem({
           "text/plain": new Blob([text], { type: "text/plain" }),
           "text/html": new Blob([htmlDoc], { type: "text/html" }),
         });
         await navigator.clipboard.write([item]);
-      } else if (navigator.clipboard?.writeText) {
+      } else if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(text);
       } else {
         throw new Error("Clipboard API недоступен.");
@@ -768,27 +774,29 @@
   function wireUi() {
     els.btnAdd.addEventListener("click", openEditForNew);
     els.btnExport.addEventListener("click", exportJson);
-    els.btnImport.addEventListener("click", () => els.fileImport.click());
-    els.fileImport.addEventListener("change", async (e) => {
-      const file = e.target.files?.[0];
+    els.btnImport.addEventListener("click", function () {
+      els.fileImport.click();
+    });
+    els.fileImport.addEventListener("change", async function (e) {
+      const file = e.target.files && e.target.files[0];
       e.target.value = "";
       if (!file) return;
       try {
         await importJsonFile(file);
       } catch (err) {
-        setToast(err?.message || "Ошибка импорта.");
+        setToast((err && err.message) || "Ошибка импорта.");
       }
     });
 
     els.filterRegion.addEventListener("change", render);
     els.filterProgram.addEventListener("change", render);
-    els.filterQuery.addEventListener("input", () => {
+    els.filterQuery.addEventListener("input", function () {
       // tiny debounce via rAF
       window.requestAnimationFrame(render);
     });
 
     // Modal close handlers
-    document.addEventListener("click", (e) => {
+    document.addEventListener("click", function (e) {
       const target = e.target;
       if (!(target instanceof HTMLElement)) return;
       const closeKind = target.getAttribute("data-close");
@@ -796,19 +804,19 @@
       if (closeKind === "edit") closeModal("edit");
     });
 
-    document.addEventListener("keydown", (e) => {
+    document.addEventListener("keydown", function (e) {
       if (e.key !== "Escape") return;
       if (els.editModal.classList.contains("isOpen")) closeModal("edit");
       else if (els.viewModal.classList.contains("isOpen")) closeModal("view");
     });
 
-    els.btnEditFromView.addEventListener("click", () => {
+    els.btnEditFromView.addEventListener("click", function () {
       if (!selected) return;
       closeModal("view");
       openEditForExisting(selected.id);
     });
 
-    els.btnDeleteFromView.addEventListener("click", () => {
+    els.btnDeleteFromView.addEventListener("click", function () {
       if (!selected) return;
       const ok = window.confirm("Удалить инструкцию? Это действие нельзя отменить.");
       if (!ok) return;
@@ -832,7 +840,7 @@
       copySelectedToClipboard();
     });
 
-    els.editForm.addEventListener("submit", (e) => {
+    els.editForm.addEventListener("submit", function (e) {
       e.preventDefault();
       upsertInstruction();
     });
