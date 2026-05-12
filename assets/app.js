@@ -66,6 +66,7 @@
   var quill = null;
   var toastTimer = null;
   var lastActiveEl = null;
+  var countdownTimerId = null;
 
   function nowIso() {
     return new Date().toISOString();
@@ -218,6 +219,119 @@
     const [y, m, d] = ymd.split("-");
     if (!y || !m || !d) return ymd;
     return `${d}.${m}.${y}`;
+  }
+
+  function zonedYmdParts(ms, timeZone) {
+    const f = new Intl.DateTimeFormat("en-CA", {
+      timeZone: timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+    return f.format(new Date(ms));
+  }
+
+  function addOneDayYmd(ymd) {
+    const parts = ymd.split("-").map((x) => parseInt(x, 10));
+    const y = parts[0];
+    const mo = parts[1];
+    const d = parts[2];
+    const dt = new Date(Date.UTC(y, mo - 1, d + 1));
+    return dt.toISOString().slice(0, 10);
+  }
+
+  function startOfDayInZone(ymd, timeZone) {
+    const parts = ymd.split("-").map((x) => parseInt(x, 10));
+    const Y = parts[0];
+    const M = parts[1];
+    const D = parts[2];
+    let lo = Date.UTC(Y, M - 1, D - 1, 0, 0, 0);
+    let hi = Date.UTC(Y, M - 1, D + 1, 0, 0, 0);
+    while (lo < hi) {
+      const mid = Math.floor((lo + hi) / 2);
+      if (zonedYmdParts(mid, timeZone) < ymd) lo = mid + 1;
+      else hi = mid;
+    }
+    return lo;
+  }
+
+  function endOfDayInZone(ymd, timeZone) {
+    const next = addOneDayYmd(ymd);
+    return startOfDayInZone(next, timeZone) - 1;
+  }
+
+  function getRegionTimeZone(regionName) {
+    const raw = String(regionName || "").trim();
+    if (!raw) return "Europe/Moscow";
+    const lower = raw.toLowerCase();
+    const map = window.RUSSIA_REGION_TZ;
+    if (map && map[lower]) return map[lower];
+    const list = window.RUSSIA_REGIONS;
+    if (list && list.length) {
+      for (let i = 0; i < list.length; i++) {
+        const n = list[i].name.toLowerCase();
+        if (n === lower) return list[i].tz;
+      }
+      for (let j = 0; j < list.length; j++) {
+        const n2 = list[j].name.toLowerCase();
+        if (n2.indexOf(lower) !== -1 || lower.indexOf(n2) !== -1) return list[j].tz;
+      }
+    }
+    return "Europe/Moscow";
+  }
+
+  function formatCountdownMs(ms) {
+    if (ms <= 0) return "Время подачи истекло";
+    const sec = Math.floor(ms / 1000);
+    const days = Math.floor(sec / 86400);
+    const h = Math.floor((sec % 86400) / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    const s = sec % 60;
+    const hh = String(h).padStart(2, "0");
+    const mm = String(m).padStart(2, "0");
+    const ss = String(s).padStart(2, "0");
+    if (days > 0) return "До конца дня: " + days + " д. " + hh + ":" + mm + ":" + ss;
+    return "До конца дня: " + hh + ":" + mm + ":" + ss;
+  }
+
+  function updateNearCountdowns() {
+    const nodes = document.querySelectorAll("[data-countdown]");
+    for (let i = 0; i < nodes.length; i++) {
+      const el = nodes[i];
+      const id = el.getAttribute("data-countdown");
+      if (!id) continue;
+      const inst = db.instructions.find((x) => x.id === id);
+      if (!inst || !inst.dueDate) {
+        el.textContent = "";
+        continue;
+      }
+      const st = computeStatus(inst);
+      if (!st.isNear || st.isExpired) {
+        el.textContent = "";
+        continue;
+      }
+      const tz = getRegionTimeZone(inst.region);
+      const endMs = endOfDayInZone(inst.dueDate, tz);
+      const left = endMs - Date.now();
+      el.textContent = formatCountdownMs(left);
+    }
+  }
+
+  function ensureCountdownTicker() {
+    if (countdownTimerId !== null) return;
+    countdownTimerId = window.setInterval(updateNearCountdowns, 1000);
+  }
+
+  function initRegionDatalist() {
+    const dl = document.getElementById("regionDatalist");
+    const list = window.RUSSIA_REGIONS;
+    if (!dl || !list || !list.length) return;
+    dl.innerHTML = "";
+    for (let i = 0; i < list.length; i++) {
+      const opt = document.createElement("option");
+      opt.value = list[i].name;
+      dl.appendChild(opt);
+    }
   }
 
   function escapeText(s) {
@@ -501,6 +615,10 @@
       const badgeText = isExpired ? (i.isExpiredOverride ? "Просрочено (вручную)" : isExpiredByDate ? "Просрочено" : "Просрочено") : isNear ? "Скоро срок" : "Актуально";
       const badgeClass = isExpired ? "badge--expired" : isNear ? "badge--near" : "badge--ok";
 
+      const countdownRow = isNear
+        ? `<span class="card__countdown" data-countdown="${escapeText(i.id)}" aria-live="polite"></span>`
+        : "";
+
       card.innerHTML = `
         <h3 class="card__title">${escapeText(i.title || "Без названия")}</h3>
         <div class="card__metaRow">
@@ -509,6 +627,7 @@
           <span class="badge">${escapeText(i.program || "—")}</span>
           <span class="badge">до ${escapeText(formatDue(i.dueDate))}</span>
         </div>
+        ${countdownRow}
       `;
 
       card.addEventListener("click", () => openView(i.id));
@@ -521,6 +640,9 @@
 
       els.cards.appendChild(card);
     }
+
+    updateNearCountdowns();
+    ensureCountdownTicker();
   }
 
   function openView(id) {
@@ -864,6 +986,7 @@
 
   function bootstrap() {
     db = loadDb();
+    initRegionDatalist();
     initQuill();
     wireUi();
     if (!HAS_REMOTE) {

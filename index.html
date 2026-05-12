@@ -14,6 +14,7 @@
     />
     <script defer src="https://cdn.jsdelivr.net/npm/quill@1.3.7/dist/quill.min.js"></script>
 
+    <script defer src="assets/regions-ru.js"></script>
     <!-- Optional runtime config (copy from assets/config.example.js -> assets/config.js) -->
     <script defer src="assets/config.js" onerror="void 0"></script>
     <script defer src="assets/app.js"></script>
@@ -113,7 +114,16 @@
 
               <div class="field">
                 <label for="inpRegion" class="field__label">Регион *</label>
-                <input id="inpRegion" class="field__control" type="text" required />
+                <input
+                  id="inpRegion"
+                  class="field__control"
+                  type="text"
+                  list="regionDatalist"
+                  autocomplete="off"
+                  placeholder="Выберите из списка или начните вводить название"
+                  required
+                />
+                <datalist id="regionDatalist"></datalist>
               </div>
 
               <div class="field">
